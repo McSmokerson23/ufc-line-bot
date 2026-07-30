@@ -1,0 +1,45 @@
+name: UFC Line Bot
+
+on:
+  schedule:
+    # 15 runs/day, all times UTC.
+    # Hourly 14:00-23:00 UTC = 10am-7pm ET (peak line-release window).
+    # Every ~3h overnight: 00, 03, 06, 09, 12 UTC.
+    - cron: "0 0,3,6,9,12,14,15,16,17,18,19,20,21,22,23 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run bot
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python bot.py
+
+      - name: Save state back to repo
+        run: |
+          git config user.name "ufc-line-bot"
+          git config user.email "actions@github.com"
+          git add ufc_seen.json
+          if git diff --staged --quiet; then
+            echo "No state change."
+          else
+            git commit -m "Update seen fights"
+            git push
+          fi
